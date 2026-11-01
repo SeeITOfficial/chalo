@@ -1,131 +1,207 @@
 import React, { useState } from 'react';
 import { api } from '../api';
-import { Shield, MapPin, Bell, CheckCircle2 } from 'lucide-react';
+import { MapPin, Bell, Check, ArrowRight } from 'lucide-react';
 
 interface OnboardingModalProps {
-  user: any;
-  onComplete: (updatedUser: any) => void;
+  user?: any;
+  onComplete: () => void;
 }
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({ user, onComplete }) => {
-  const [gender, setGender] = useState<'female' | 'male' | 'other' | 'unspecified'>(user?.gender || 'unspecified');
-  const [locGranted, setLocGranted] = useState(false);
-  const [notifGranted, setNotifGranted] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [gender, setGender] = useState<string>(user?.gender || 'unspecified');
+  const [locStatus, setLocStatus] = useState<'pending' | 'granted' | 'denied'>('pending');
+  const [notifStatus, setNotifStatus] = useState<'pending' | 'granted' | 'denied'>('pending');
+
+  const handleGenderSelect = async (g: 'female' | 'male' | 'other' | 'unspecified') => {
+    setGender(g);
+    try {
+      await api.updateGender(g);
+    } catch (e) {
+      console.error('Failed to update gender:', e);
+    }
+  };
 
   const requestLocation = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        () => setLocGranted(true),
-        () => setLocGranted(false)
+        () => setLocStatus('granted'),
+        () => setLocStatus('denied'),
+        { enableHighAccuracy: true, timeout: 8000 }
       );
+    } else {
+      setLocStatus('denied');
     }
   };
 
-  const requestNotifications = async () => {
+  const requestNotification = async () => {
     if ('Notification' in window) {
       const perm = await Notification.requestPermission();
-      if (perm === 'granted') {
-        setNotifGranted(true);
-      }
+      setNotifStatus(perm === 'granted' ? 'granted' : 'denied');
+    } else {
+      setLocStatus('denied');
     }
   };
 
   const handleFinish = async () => {
-    setSaving(true);
-    try {
-      if (gender !== user.gender) {
-        await api.updateGender(gender);
+    if (gender && gender !== user?.gender) {
+      try {
+        await api.updateGender(gender as any);
+      } catch (e) {
+        console.error(e);
       }
-      const updated = await api.getMe();
-      localStorage.setItem('chalo_onboarded', 'true');
-      onComplete(updated);
-    } catch (e) {
-      console.error(e);
-      onComplete(user);
-    } finally {
-      setSaving(false);
     }
+    localStorage.setItem('chalo_onboarded', 'true');
+    onComplete();
   };
 
   return (
-    <div className="sheet-overlay" style={{ alignItems: 'center', padding: '20px' }}>
-      <div className="glass-card" style={{ maxWidth: '420px', width: '100%', padding: '24px', background: '#111624' }}>
-        <h2 style={{ fontSize: '1.35rem', marginBottom: '8px', color: '#FFF' }}>
-          Welcome to Chalo!
-        </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px', lineHeight: '1.4' }}>
-          Before you discover rides leaving right now, customize your preferences.
-        </p>
-
-        {/* Gender Selection & Night Rule Explanation */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Shield size={16} color="#C084FC" />
-            <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Gender (Optional & Self-Declared)</span>
-          </div>
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '10px', lineHeight: '1.35' }}>
-            Only used for the <strong>Night Women-Only rule (8pm–6am IST)</strong>. Skipping this means you will not receive women-only night pings.
+    <div style={{ padding: '28px 20px', display: 'flex', flexDirection: 'column', minHeight: '100vh', justifyContent: 'space-between', backgroundColor: '#FFFFFF' }}>
+      <div>
+        <div style={{ marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '28px', marginBottom: '6px' }}>
+            Welcome to <span style={{ color: 'var(--primary)' }}>Chalo</span>
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '17px', fontWeight: 500 }}>
+            Share your ride, split the fare.
           </p>
+        </div>
+
+        {/* 3 Short Steps */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '15px' }}>
+              1
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', marginBottom: '2px' }}>Pick where you're going</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Save your frequent destinations like Railway Station or your Society.</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '15px' }}>
+              2
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', marginBottom: '2px' }}>We tell people near you</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Anyone nearby heading the same way gets an alert when you leave.</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '15px' }}>
+              3
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', marginBottom: '2px' }}>Meet, take an auto, split the fare</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Take any auto together and agree the fare directly with the driver.</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Gender Selection (at start of app, without mentioning night rule) */}
+        <div style={{ borderTop: '1.5px solid var(--border-subtle)', paddingTop: '20px', marginBottom: '20px' }}>
+          <label style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', display: 'block', marginBottom: '8px' }}>
+            Gender
+          </label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-            {(['female', 'male', 'other', 'unspecified'] as const).map((g) => (
+            {[
+              { id: 'female', label: 'Female' },
+              { id: 'male', label: 'Male' },
+              { id: 'other', label: 'Other' },
+              { id: 'unspecified', label: 'Prefer not to say' },
+            ].map((item) => (
               <button
-                key={g}
+                key={item.id}
                 type="button"
-                onClick={() => setGender(g)}
-                className={`quick-chip ${gender === g ? 'selected' : ''}`}
-                style={{ textAlign: 'center', textTransform: 'capitalize' }}
+                onClick={() => handleGenderSelect(item.id as any)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: gender === item.id ? '2px solid var(--primary)' : '1.5px solid var(--border)',
+                  backgroundColor: gender === item.id ? 'var(--primary-light)' : '#FFFFFF',
+                  color: gender === item.id ? 'var(--primary)' : 'var(--text-main)',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
               >
-                {g}
+                {gender === item.id && <Check size={16} />}
+                <span>{item.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Permissions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <MapPin size={18} color="#10B981" />
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Location Access</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Used to match people within 100m</div>
+        {/* Permissions with Plain Reasons */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Location Permission */}
+          <div style={{ background: 'var(--bg-subtle)', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '15px' }}>
+                <MapPin size={18} color="var(--primary)" />
+                Location
               </div>
+              {locStatus === 'granted' ? (
+                <span style={{ color: 'var(--accent-green)', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={16} /> Allowed
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  className="btn-secondary"
+                  style={{ minHeight: '34px', padding: '4px 12px', fontSize: '13px' }}
+                >
+                  Allow
+                </button>
+              )}
             </div>
-            {locGranted ? (
-              <CheckCircle2 size={20} color="#10B981" />
-            ) : (
-              <button onClick={requestLocation} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
-                Allow
-              </button>
-            )}
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.35' }}>
+              Needed to find other riders leaving right now within 100 meters of you.
+            </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Bell size={18} color="#FF6B00" />
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Web Push Pings</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Ping when someone leaves for your saved place</div>
+          {/* Notification Permission */}
+          <div style={{ background: 'var(--bg-subtle)', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '15px' }}>
+                <Bell size={18} color="var(--primary)" />
+                Notifications
               </div>
+              {notifStatus === 'granted' ? (
+                <span style={{ color: 'var(--accent-green)', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={16} /> Allowed
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={requestNotification}
+                  className="btn-secondary"
+                  style={{ minHeight: '34px', padding: '4px 12px', fontSize: '13px' }}
+                >
+                  Allow
+                </button>
+              )}
             </div>
-            {notifGranted ? (
-              <CheckCircle2 size={20} color="#10B981" />
-            ) : (
-              <button onClick={requestNotifications} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
-                Allow
-              </button>
-            )}
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.35' }}>
+              We only alert you when someone near you is leaving for one of your saved places.
+            </p>
           </div>
         </div>
+      </div>
 
+      <div style={{ marginTop: '24px' }}>
         <button
+          type="button"
           onClick={handleFinish}
-          disabled={saving}
           className="btn-primary"
-          style={{ width: '100%' }}
         >
-          {saving ? 'Saving...' : 'Enter Chalo'}
+          <span>Continue</span>
+          <ArrowRight size={18} />
         </button>
       </div>
     </div>

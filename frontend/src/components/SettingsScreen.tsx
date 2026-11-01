@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api, clearStoredToken } from '../api';
-import { Shield, Bell, LogOut, Check, Info } from 'lucide-react';
+import { User, Bell, LogOut, Check } from 'lucide-react';
 
 interface SettingsScreenProps {
   user: any;
@@ -56,103 +56,166 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 p256dh: subJson.keys.p256dh,
                 auth: subJson.keys.auth,
               });
-              alert('Push notifications enabled successfully!');
+              alert('Notifications enabled!');
             }
           }
         } catch (e) {
-          console.error('Push registration error:', e);
+          console.error('Push error:', e);
         }
       }
     }
   };
 
   return (
-    <div style={{ padding: '20px', paddingBottom: '90px' }}>
-      <h2 style={{ fontSize: '1.4rem', color: '#FFF', marginBottom: '4px' }}>Settings</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
-        Profile & Safety Controls
+    <div style={{ padding: '24px 20px 90px' }}>
+      <h1 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '6px' }}>
+        Profile
+      </h1>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '15px', marginBottom: '24px' }}>
+        Your account settings.
       </p>
 
-      {/* User Card */}
-      <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-        <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.2rem', color: '#FFF' }}>
+      {/* User Info Card */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          padding: '18px',
+          backgroundColor: 'var(--bg-card)',
+          border: '1.5px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          marginBottom: '24px',
+        }}
+      >
+        <div
+          style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--primary-light)',
+            color: 'var(--primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '22px',
+            fontWeight: 800,
+          }}
+        >
           {user?.first_name?.[0] || 'R'}
         </div>
         <div>
-          <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFF' }}>{user?.first_name}</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>Rider ID: {user?.id?.slice(0, 8)}...</div>
+          <div style={{ fontSize: '19px', fontWeight: 700, color: 'var(--text-main)' }}>
+            {user?.first_name || 'Rider'}
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            ID: {user?.id?.slice(0, 8)}...
+          </div>
         </div>
       </div>
 
-      {/* Gender Selection & Night Safety */}
-      <div className="glass-card" style={{ padding: '18px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-          <Shield size={18} color="#EC4899" />
-          <h3 style={{ fontSize: '0.95rem', color: '#FFF' }}>Gender (Night Women-Only Matching)</h3>
+      {/* Gender */}
+      <div
+        style={{
+          padding: '20px',
+          backgroundColor: 'var(--bg-card)',
+          border: '1.5px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          marginBottom: '24px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <User size={20} color="var(--primary)" />
+          <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Gender</h2>
         </div>
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: '1.35' }}>
-          Self-declared and optional. Night window is <strong>8:00 PM to 6:00 AM IST</strong>. Women riders' trips are women-only by default at night.
-        </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '8px' }}>
-          {(['female', 'male', 'other', 'unspecified'] as const).map((g) => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '10px' }}>
+          {[
+            { id: 'female', label: 'Female' },
+            { id: 'male', label: 'Male' },
+            { id: 'other', label: 'Other' },
+            { id: 'unspecified', label: 'Prefer not to say' },
+          ].map((item) => (
             <button
-              key={g}
+              key={item.id}
               type="button"
-              onClick={() => handleGenderChange(g)}
               disabled={savingGender}
-              className={`quick-chip ${gender === g ? 'selected' : ''}`}
-              style={{ textAlign: 'center', textTransform: 'capitalize' }}
+              onClick={() => handleGenderChange(item.id as any)}
+              style={{
+                padding: '12px',
+                borderRadius: 'var(--radius-md)',
+                border: gender === item.id ? '2px solid var(--primary)' : '1.5px solid var(--border)',
+                backgroundColor: gender === item.id ? 'var(--primary-light)' : 'var(--bg-page)',
+                color: gender === item.id ? 'var(--primary)' : 'var(--text-main)',
+                fontWeight: 700,
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
             >
-              {g}
+              {gender === item.id && <Check size={16} />}
+              <span>{item.label}</span>
             </button>
           ))}
         </div>
+
         {genderSavedNotice && (
-          <div style={{ fontSize: '0.75rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-            <Check size={14} /> Preference saved
+          <div style={{ fontSize: '13px', color: 'var(--accent-green)', fontWeight: 700 }}>
+            Preference saved!
           </div>
         )}
       </div>
 
       {/* Notifications */}
-      <div className="glass-card" style={{ padding: '18px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Bell size={18} color="#FF6B00" />
-            <div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#FFF' }}>Web Push Notifications</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                Status: <strong style={{ color: notifStatus === 'granted' ? '#10B981' : '#F59E0B' }}>{notifStatus}</strong>
-              </div>
-            </div>
-          </div>
-          {notifStatus !== 'granted' && (
-            <button onClick={handleRequestPush} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
-              Enable
-            </button>
-          )}
+      <div
+        style={{
+          padding: '20px',
+          backgroundColor: 'var(--bg-card)',
+          border: '1.5px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          marginBottom: '24px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <Bell size={20} color="var(--primary)" />
+          <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Ride Alerts</h2>
         </div>
-      </div>
+        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '16px' }}>
+          Get notified when someone near you posts a ride to one of your saved places.
+        </p>
 
-      {/* Privacy Notice */}
-      <div style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', border: '1px solid var(--border-subtle)', marginBottom: '24px', display: 'flex', gap: '10px' }}>
-        <Info size={18} color="var(--text-dim)" style={{ flexShrink: 0, marginTop: '2px' }} />
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', lineHeight: '1.4' }}>
-          Chalo never shares your exact GPS coordinates with other users. All board distances are bucketed to 50 meters. First names only; phone numbers are never shared or stored.
-        </div>
+        {notifStatus === 'granted' ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-green)', fontWeight: 700, fontSize: '15px' }}>
+            <Check size={18} />
+            <span>Alert notifications are enabled</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleRequestPush}
+            className="btn-secondary"
+            style={{ width: '100%' }}
+          >
+            <Bell size={18} />
+            <span>Enable Notifications</span>
+          </button>
+        )}
       </div>
 
       {/* Sign Out */}
       <button
+        type="button"
         onClick={() => {
           clearStoredToken();
           onSignOut();
         }}
-        className="btn-secondary"
-        style={{ width: '100%', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#F87171' }}
+        className="btn-danger"
+        style={{ width: '100%', minHeight: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
       >
-        <LogOut size={16} /> Sign Out
+        <LogOut size={18} />
+        <span>Sign Out</span>
       </button>
     </div>
   );

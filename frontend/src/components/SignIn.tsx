@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../api';
-import { Users, Shield, Zap, Sparkles } from 'lucide-react';
+import { ArrowRight, UserCheck } from 'lucide-react';
 
 interface SignInProps {
   onSuccess: (user: any) => void;
@@ -35,125 +35,94 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
       const me = await api.getMe();
       onSuccess(me);
     } catch (err: any) {
-      setError(err.message || 'Invalid Google token');
+      setError(err.message || 'Invalid token');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: '32px 20px', display: 'flex', flexDirection: 'column', minHeight: '100vh', justifyContent: 'space-between' }}>
+    <div style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', minHeight: '100vh', justifyContent: 'space-between', backgroundColor: '#FFFFFF' }}>
       <div>
-        {/* Logo & Headline */}
-        <div style={{ textAlign: 'center', marginTop: '24px', marginBottom: '32px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <span style={{ fontSize: '2.5rem', fontWeight: 900, fontFamily: 'var(--font-display)', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              चलो
-            </span>
-            <span style={{ fontSize: '2rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: '#FFFFFF' }}>
-              Chalo
-            </span>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.4', maxWidth: '320px', margin: '0 auto' }}>
-            "I'm leaving now. Who else near me is going where I'm going?"
+        <div style={{ textAlign: 'left', marginTop: '16px', marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '36px', fontWeight: 900, marginBottom: '6px' }}>
+            <span style={{ color: 'var(--primary)' }}>चलो</span> Chalo
+          </h1>
+          <p style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            I'm leaving now. Who else is going where I'm going?
+          </p>
+          <p style={{ fontSize: '15px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+            Find 2–3 people nearby heading to the same station, airport, or mall. Share an auto and split the fare.
           </p>
         </div>
 
-        {/* Value Proposition Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '36px' }}>
-          <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ background: 'rgba(255, 107, 0, 0.15)', padding: '10px', borderRadius: '12px', color: '#FF7A00' }}>
-              <Zap size={22} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#FFF' }}>On-The-Spot Discovery</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Find 2-3 others leaving right now and split the auto fare.</div>
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ background: 'rgba(16, 185, 129, 0.15)', padding: '10px', borderRadius: '12px', color: '#10B981' }}>
-              <Users size={22} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#FFF' }}>Zero Middlemen, Pure Direct</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No drivers, no app booking fees. Meet, agree the fare with the driver, split equally.</div>
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ background: 'rgba(139, 92, 246, 0.15)', padding: '10px', borderRadius: '12px', color: '#C084FC' }}>
-              <Shield size={22} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#FFF' }}>Night Women-Only Safety</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Between 8pm–6am IST, trips by women default to women-only automatically.</div>
-            </div>
-          </div>
-        </div>
-
         {error && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '12px', borderRadius: '12px', fontSize: '0.85rem', marginBottom: '20px', textAlign: 'center' }}>
+          <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '20px', fontSize: '15px', fontWeight: 600 }}>
             {error}
           </div>
         )}
 
-        {/* Demo Fast Login Riders (Pilot Testing) */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px', textAlign: 'center' }}>
-            <Sparkles size={14} style={{ display: 'inline', marginRight: '6px' }} />
-            Quick Demo Riders (Pilot Cluster)
+        {/* Quick Demo Profiles (Pilot Testing) */}
+        <div style={{ background: 'var(--bg-subtle)', padding: '18px', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--border)', marginBottom: '28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontWeight: 700, fontSize: '15px', color: 'var(--text-main)' }}>
+            <UserCheck size={18} color="var(--primary)" />
+            Select a profile to start:
           </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <button
+              type="button"
               onClick={() => handleMockLogin('anita-vadodara', 'Anita', 'female')}
               disabled={loading}
               className="btn-secondary"
-              style={{ padding: '10px 12px', fontSize: '0.85rem', justifyContent: 'flex-start' }}
+              style={{ justifyContent: 'flex-start', padding: '12px' }}
             >
-              👩 Anita <span style={{ color: '#F472B6', fontSize: '0.75rem' }}>(F)</span>
+              👩 Anita <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>(F)</span>
             </button>
             <button
+              type="button"
               onClick={() => handleMockLogin('rahul-vadodara', 'Rahul', 'male')}
               disabled={loading}
               className="btn-secondary"
-              style={{ padding: '10px 12px', fontSize: '0.85rem', justifyContent: 'flex-start' }}
+              style={{ justifyContent: 'flex-start', padding: '12px' }}
             >
-              👨 Rahul <span style={{ color: '#60A5FA', fontSize: '0.75rem' }}>(M)</span>
+              👨 Rahul <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>(M)</span>
             </button>
             <button
+              type="button"
               onClick={() => handleMockLogin('priya-vadodara', 'Priya', 'female')}
               disabled={loading}
               className="btn-secondary"
-              style={{ padding: '10px 12px', fontSize: '0.85rem', justifyContent: 'flex-start' }}
+              style={{ justifyContent: 'flex-start', padding: '12px' }}
             >
-              👩 Priya <span style={{ color: '#F472B6', fontSize: '0.75rem' }}>(F)</span>
+              👩 Priya <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>(F)</span>
             </button>
             <button
+              type="button"
               onClick={() => handleMockLogin('dev-vadodara', 'Dev', 'male')}
               disabled={loading}
               className="btn-secondary"
-              style={{ padding: '10px 12px', fontSize: '0.85rem', justifyContent: 'flex-start' }}
+              style={{ justifyContent: 'flex-start', padding: '12px' }}
             >
-              👨 Dev <span style={{ color: '#60A5FA', fontSize: '0.75rem' }}>(M)</span>
+              👨 Dev <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>(M)</span>
             </button>
           </div>
         </div>
 
-        {/* Google Sign-In Input or Action */}
-        <form onSubmit={handleGoogleTokenSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {/* Google Sign In option */}
+        <form onSubmit={handleGoogleTokenSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <input
             type="text"
-            placeholder="Paste Google ID Token (or type name for test)"
+            placeholder="Or enter Google ID token"
             value={googleTokenInput}
             onChange={(e) => setGoogleTokenInput(e.target.value)}
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-subtle)',
-              padding: '12px 16px',
+              padding: '14px 16px',
+              fontSize: '15px',
+              border: '1.5px solid var(--border)',
               borderRadius: 'var(--radius-md)',
-              color: '#FFF',
-              fontSize: '0.85rem',
+              background: '#FFFFFF',
+              color: 'var(--text-main)',
               outline: 'none',
             }}
           />
@@ -161,15 +130,15 @@ export const SignIn: React.FC<SignInProps> = ({ onSuccess }) => {
             type="submit"
             disabled={loading || !googleTokenInput.trim()}
             className="btn-primary"
-            style={{ width: '100%', opacity: loading || !googleTokenInput.trim() ? 0.6 : 1 }}
           >
-            {loading ? 'Signing in...' : 'Sign In with Google'}
+            <span>{loading ? 'Signing in...' : 'Sign in with Google'}</span>
+            <ArrowRight size={18} />
           </button>
         </form>
       </div>
 
-      <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '24px' }}>
-        Vadodara Pilot Cluster: Parul University Gate • Station Route • Waghodia
+      <div style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)', marginTop: '24px' }}>
+        Vadodara Pilot: Station • Airport • Waghodia & Ajwa Societies
       </div>
     </div>
   );

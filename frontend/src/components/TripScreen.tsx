@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
-import { Clock, Users, ArrowLeft, Send, Flag, ShieldAlert, AlertCircle, LogOut } from 'lucide-react';
+import { ArrowLeft, Clock, Send, Flag, ShieldAlert, LogOut, Info } from 'lucide-react';
 
 interface TripScreenProps {
   tripId: string;
@@ -101,22 +101,26 @@ export const TripScreen: React.FC<TripScreenProps> = ({
 
   if (loading) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        Loading ride room...
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        Loading ride details...
       </div>
     );
   }
 
   if (!trip) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>Ride not found or you are not a member.</p>
-        <button onClick={onBack} className="btn-secondary" style={{ margin: '0 auto' }}>Go Back</button>
+      <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
+          Ride not found or you are no longer a member.
+        </p>
+        <button onClick={onBack} className="btn-secondary" style={{ margin: '0 auto' }}>
+          Go Back
+        </button>
       </div>
     );
   }
 
-  // Calculate remaining countdown
+  // Countdown calculations
   const nowSec = Math.floor(Date.now() / 1000);
   const secondsToLeave = Math.max(0, trip.leave_at - nowSec);
   const secondsToExpiry = Math.max(0, trip.expires_at - nowSec);
@@ -130,91 +134,161 @@ export const TripScreen: React.FC<TripScreenProps> = ({
   const isPoster = members.some((m) => m.id === user.id && m.role === 'poster');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-base)' }}>
-      {/* Top Header Bar */}
-      <div className="app-header" style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button onClick={onBack} style={{ background: 'none', color: '#FFF', display: 'flex', alignItems: 'center' }}>
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h3 style={{ fontSize: '1.05rem', color: '#FFF' }}>{trip.place}</h3>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-              Ride Room • {members.length} Rider{members.length !== 1 ? 's' : ''}
-            </span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--bg-page)' }}>
+      {/* 8. Top: Destination and countdown */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderBottom: '1.5px solid var(--border-subtle)',
+          padding: '16px 20px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              onClick={onBack}
+              style={{
+                background: 'var(--bg-subtle)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '38px',
+                height: '38px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-main)',
+              }}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 style={{ fontSize: '22px', fontWeight: 800 }}>{trip.place}</h1>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                {members.length} {members.length === 1 ? 'person' : 'people'} going
+              </div>
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleLeaveTrip}
+            style={{
+              backgroundColor: 'var(--danger-bg)',
+              color: 'var(--danger)',
+              border: '1.5px solid #FECACA',
+              borderRadius: 'var(--radius-md)',
+              padding: '8px 12px',
+              fontSize: '13px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <LogOut size={15} />
+            <span>{isPoster ? 'Cancel Ride' : 'Leave'}</span>
+          </button>
         </div>
 
-        <button
-          onClick={handleLeaveTrip}
-          style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-full)', padding: '6px 12px', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
+        {/* Countdown timer */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: secondsToLeave > 0 ? 'var(--primary-light)' : 'var(--bg-subtle)',
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: 700,
+            fontSize: '15px',
+            color: secondsToLeave > 0 ? 'var(--primary)' : 'var(--text-secondary)',
+          }}
         >
-          <LogOut size={13} />
-          {isPoster ? 'Cancel Ride' : 'Leave'}
-        </button>
+          <Clock size={18} />
+          {secondsToLeave > 0 ? (
+            <span>Leaving in {formatMinSec(secondsToLeave)}</span>
+          ) : secondsToExpiry > 0 ? (
+            <span>Waiting for riders ({formatMinSec(secondsToExpiry)} left)</span>
+          ) : (
+            <span>Ride ended</span>
+          )}
+        </div>
       </div>
 
-      {/* Trip Status & Countdown Pill */}
-      <div style={{ padding: '12px 16px', background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Clock size={16} color="#FF6B00" />
-            <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-              {secondsToLeave > 0 ? (
-                <>Leaving in <span style={{ color: '#FF7A00' }}>{formatMinSec(secondsToLeave)}</span></>
-              ) : secondsToExpiry > 0 ? (
-                <>No-show wait: <span style={{ color: '#F59E0B' }}>{formatMinSec(secondsToExpiry)}</span></>
-              ) : (
-                <span style={{ color: '#EF4444' }}>Ride Expired</span>
-              )}
-            </span>
-          </div>
-          <span className={`badge ${trip.status === 'open' ? 'badge-society' : trip.status === 'full' ? 'badge-office' : 'badge-other'}`}>
-            {trip.status.toUpperCase()}
-          </span>
-        </div>
-
-        {/* Member First Names */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-          <Users size={14} color="var(--text-dim)" />
+      {/* Middle: Who is going */}
+      <div
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderBottom: '1px solid var(--border-subtle)',
+          padding: '12px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          overflowX: 'auto',
+        }}
+      >
+        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          Going:
+        </span>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'nowrap' }}>
           {members.map((m) => (
             <span
               key={m.id}
               style={{
-                fontSize: '0.78rem',
-                padding: '3px 10px',
+                backgroundColor: m.id === user.id ? 'var(--primary-light)' : 'var(--bg-subtle)',
+                color: m.id === user.id ? 'var(--primary)' : 'var(--text-main)',
+                border: m.id === user.id ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                padding: '4px 12px',
                 borderRadius: 'var(--radius-full)',
-                background: m.id === user.id ? 'rgba(255, 107, 0, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                color: m.id === user.id ? '#FFA552' : '#FFF',
-                border: m.id === user.id ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                fontWeight: 600,
+                fontSize: '14px',
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
               }}
             >
-              {m.first_name} {m.role === 'poster' ? '👑' : ''}
+              {m.first_name} {m.role === 'poster' ? '👑' : ''} {m.id === user.id ? '(You)' : ''}
             </span>
           ))}
         </div>
       </div>
 
-      {/* Safety & No-Show Reminders */}
-      <div style={{ padding: '8px 16px', background: 'rgba(255, 107, 0, 0.06)', borderBottom: '1px solid rgba(255, 107, 0, 0.15)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-        <AlertCircle size={15} color="#FF7A00" style={{ flexShrink: 0, marginTop: '2px' }} />
-        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: '1.3' }}>
-          <strong>Meeting Rule:</strong> Wait at the meeting spot until countdown ends, agree the fare with the driver, then split equally among whoever shows up.
+      {/* Notice Banner */}
+      <div
+        style={{
+          backgroundColor: '#FFFBEB',
+          borderBottom: '1px solid #FDE68A',
+          padding: '10px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+        }}
+      >
+        <Info size={18} color="#D97706" style={{ flexShrink: 0 }} />
+        <div style={{ fontSize: '13px', color: '#92400E', fontWeight: 600, lineHeight: '1.35' }}>
+          Agree the fare with the driver, then split equally among everyone who boards.
         </div>
       </div>
 
       {error && (
-        <div style={{ margin: '8px 16px', padding: '8px 12px', background: 'rgba(239, 68, 68, 0.15)', color: '#F87171', borderRadius: '8px', fontSize: '0.78rem' }}>
+        <div style={{ margin: '12px 20px 0', padding: '10px 14px', backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: 600 }}>
           {error}
         </div>
       )}
 
-      {/* Chat Messages Scrollable Feed */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {/* Chat Messages */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '16px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+      >
         {messages.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '30px' }}>
-            No messages yet. Use quick buttons below to say you arrived!
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', marginTop: '40px' }}>
+            No messages yet. Tap a quick button below to say you are here!
           </div>
         ) : (
           messages.map((msg) => {
@@ -230,32 +304,31 @@ export const TripScreen: React.FC<TripScreenProps> = ({
                   alignItems: isMe ? 'flex-end' : 'flex-start',
                 }}
               >
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: '3px', paddingLeft: '4px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '3px', fontWeight: 600 }}>
                   {isMe ? 'You' : msg.first_name}
                 </div>
                 <div
-                  style={{
-                    background: isMe ? 'var(--accent-gradient)' : 'rgba(255, 255, 255, 0.07)',
-                    color: isMe ? '#FFFFFF' : 'var(--text-main)',
-                    padding: '10px 14px',
-                    borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                    fontSize: '0.88rem',
-                    lineHeight: '1.35',
-                    wordBreak: 'break-word',
-                    border: isMe ? 'none' : '1px solid var(--border-subtle)',
-                    position: 'relative',
-                  }}
+                  className={`chat-bubble ${isMe ? 'chat-bubble-me' : 'chat-bubble-other'}`}
                 >
                   {msg.body}
                 </div>
-
-                {/* Flag & Report button for other members' messages */}
-                {!isMe && (
+                {!isMe && chatOpen && (
                   <button
+                    type="button"
                     onClick={() => setConfirmFlagId(msg.id)}
-                    style={{ background: 'none', color: 'var(--text-dim)', fontSize: '0.68rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: '12px',
+                      marginTop: '3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: 'pointer',
+                    }}
                   >
-                    <Flag size={11} /> Flag
+                    <Flag size={12} /> Flag
                   </button>
                 )}
               </div>
@@ -265,38 +338,24 @@ export const TripScreen: React.FC<TripScreenProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Flag Confirmation Dialog */}
-      {confirmFlagId && (
-        <div className="sheet-overlay" style={{ alignItems: 'center', padding: '20px' }}>
-          <div className="glass-card" style={{ maxWidth: '380px', width: '100%', padding: '20px', background: '#141824' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#EF4444', marginBottom: '8px' }}>
-              <ShieldAlert size={20} />
-              <h4 style={{ fontSize: '1.05rem', color: '#FFF' }}>Flag & Report Message</h4>
-            </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: '1.4' }}>
-              Flagging immediately removes this user from the ride, frees their seat, and keeps surrounding messages as evidence for review.
-            </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setConfirmFlagId(null)} className="btn-secondary" style={{ flex: 1, padding: '10px' }}>
-                Cancel
-              </button>
-              <button onClick={() => handleFlagMessage(confirmFlagId)} className="btn-danger" style={{ flex: 1, padding: '10px' }}>
-                Confirm Flag
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Action Buttons (Section 5.7) */}
+      {/* 4 Big Quick Buttons: "I'm here", "2 min late", "Leaving now", "Can't make it" */}
       {chatOpen && (
-        <div style={{ padding: '6px 16px 0', display: 'flex', gap: '8px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+        <div
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            borderTop: '1px solid var(--border-subtle)',
+            padding: '10px 16px 6px',
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+          }}
+        >
           {(["I'm here", "2 min late", "Leaving now", "Can't make it"] as const).map((q) => (
             <button
               key={q}
+              type="button"
+              className="quick-btn"
               onClick={() => handleSendMessage(q, 'quick')}
-              className="quick-chip"
-              style={{ padding: '6px 12px', fontSize: '0.78rem' }}
             >
               {q}
             </button>
@@ -304,8 +363,14 @@ export const TripScreen: React.FC<TripScreenProps> = ({
         </div>
       )}
 
-      {/* Chat Input Bar */}
-      <div style={{ padding: '12px 16px max(12px, env(safe-area-inset-bottom))', borderTop: '1px solid var(--border-subtle)', background: '#0D111D' }}>
+      {/* Message Input Bar */}
+      <div
+        style={{
+          padding: '10px 16px max(12px, env(safe-area-inset-bottom))',
+          backgroundColor: 'var(--bg-card)',
+          borderTop: '1px solid var(--border-subtle)',
+        }}
+      >
         {chatOpen ? (
           <form
             onSubmit={(e) => {
@@ -316,36 +381,79 @@ export const TripScreen: React.FC<TripScreenProps> = ({
           >
             <input
               type="text"
-              placeholder="Message group (first names only)..."
+              placeholder="Message riders (first names only)..."
               value={messageText}
               maxLength={500}
               onChange={(e) => setMessageText(e.target.value)}
               style={{
                 flex: 1,
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border-subtle)',
-                padding: '10px 14px',
+                border: '1.5px solid var(--border)',
                 borderRadius: 'var(--radius-full)',
-                color: '#FFF',
-                fontSize: '0.85rem',
+                padding: '12px 18px',
+                fontSize: '15px',
+                color: 'var(--text-main)',
+                backgroundColor: 'var(--bg-subtle)',
                 outline: 'none',
               }}
             />
             <button
               type="submit"
               disabled={sending || !messageText.trim()}
-              className="btn-primary"
-              style={{ padding: '10px 16px', borderRadius: 'var(--radius-full)' }}
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: 'var(--radius-full)',
+                width: '46px',
+                height: '46px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
             >
-              <Send size={16} />
+              <Send size={18} />
             </button>
           </form>
         ) : (
-          <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.78rem' }}>
-            Ride ended. Chat is in 1-hour read-only mode for reports.
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '6px 0' }}>
+            Ride ended. Chat is closed.
           </div>
         )}
       </div>
+
+      {/* Flag Confirmation Dialog */}
+      {confirmFlagId && (
+        <div className="modal-overlay" onClick={() => setConfirmFlagId(null)}>
+          <div className="sheet-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--danger)', marginBottom: '12px' }}>
+              <ShieldAlert size={24} />
+              <h2 style={{ fontSize: '20px' }}>Flag Message</h2>
+            </div>
+            <p style={{ fontSize: '15px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.4' }}>
+              Flagging immediately removes this person from the ride, frees their seat, and keeps the message for review.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmFlagId(null)}
+                className="btn-secondary"
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFlagMessage(confirmFlagId)}
+                className="btn-danger"
+                style={{ flex: 1, padding: '12px', fontSize: '15px' }}
+              >
+                Confirm Flag
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

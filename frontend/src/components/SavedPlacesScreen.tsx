@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import { Bookmark, Trash2, Plus, Search, MapPin, Check } from 'lucide-react';
+import { Search, MapPin, Trash2, Plus, X, Check } from 'lucide-react';
 
 interface SavedPlacesScreenProps {
   onPlaceSavedChange: () => void;
@@ -66,41 +66,71 @@ export const SavedPlacesScreen: React.FC<SavedPlacesScreenProps> = ({ onPlaceSav
   };
 
   return (
-    <div style={{ padding: '20px', paddingBottom: '90px' }}>
+    <div style={{ padding: '24px 20px 90px' }}>
       <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '1.4rem', color: '#FFF', marginBottom: '4px' }}>Saved Places</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: '1.4' }}>
-          When you turn on <strong>"I'm around"</strong>, you only get pinged for trips going to your saved places.
+        <h1 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '6px' }}>
+          Saved Places
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '15px', lineHeight: '1.4' }}>
+          Places you go often. When you have alerts on, you are notified when someone near you is leaving for any of your saved places.
         </p>
       </div>
 
-      {/* Search & Add Destination */}
+      {/* Search & Add New Place */}
       <div style={{ position: 'relative', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--border-subtle)', borderRadius: '14px', padding: '10px 14px', gap: '8px' }}>
-          <Search size={18} color="var(--text-dim)" />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: 'var(--bg-card)',
+            border: '1.5px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px 16px',
+            gap: '10px',
+          }}
+        >
+          <Search size={18} color="var(--text-muted)" />
           <input
             type="text"
-            placeholder="Search stations, societies, DMarts to save..."
+            placeholder="Search places in Vadodara to save..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: '#FFF', fontSize: '0.85rem' }}
+            style={{
+              flex: 1,
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              fontSize: '16px',
+              color: 'var(--text-main)',
+              fontFamily: 'inherit',
+            }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', display: 'flex' }}
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
-        {/* Dropdown Results */}
+        {/* Search Results Dropdown */}
         {searchResults.length > 0 && (
           <div
-            className="glass-card"
             style={{
               position: 'absolute',
               top: '105%',
               left: 0,
               right: 0,
               zIndex: 30,
-              background: '#151C2C',
-              maxHeight: '220px',
+              backgroundColor: 'var(--bg-card)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              maxHeight: '260px',
               overflowY: 'auto',
-              padding: '6px',
+              boxShadow: 'var(--shadow-md)',
             }}
           >
             {searchResults.map((p) => {
@@ -112,26 +142,35 @@ export const SavedPlacesScreen: React.FC<SavedPlacesScreenProps> = ({ onPlaceSav
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid var(--border-subtle)',
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: '0.88rem', color: '#FFF', fontWeight: 600 }}>{p.name}</div>
-                    <span className={`badge badge-${p.kind}`} style={{ fontSize: '0.65rem' }}>{p.kind}</span>
+                  <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--text-main)' }}>
+                    {p.name}
                   </div>
                   {isAlreadySaved ? (
-                    <span style={{ fontSize: '0.75rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Check size={14} /> Saved
+                    <span style={{ fontSize: '13px', color: 'var(--accent-green)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Check size={16} /> Saved
                     </span>
                   ) : (
                     <button
+                      type="button"
                       onClick={() => handleSavePlace(p.id)}
-                      className="btn-primary"
-                      style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                      style={{
+                        backgroundColor: 'var(--primary-light)',
+                        color: 'var(--primary)',
+                        border: '1px solid var(--primary)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '6px 12px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
                     >
-                      <Plus size={13} /> Save
+                      <Plus size={14} /> Add
                     </button>
                   )}
                 </div>
@@ -141,55 +180,69 @@ export const SavedPlacesScreen: React.FC<SavedPlacesScreenProps> = ({ onPlaceSav
         )}
       </div>
 
-      {/* Saved Places List */}
-      <h3 style={{ fontSize: '0.85rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
-        My Destination Shortcuts ({savedPlaces.length})
-      </h3>
-
-      {loading ? (
-        <div style={{ color: 'var(--text-dim)', fontSize: '0.82rem' }}>Loading shortcuts...</div>
-      ) : savedPlaces.length === 0 ? (
-        <div className="glass-card" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-dim)' }}>
-          <Bookmark size={28} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
-          <p style={{ fontSize: '0.85rem' }}>No saved places yet.</p>
-          <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Search above to add railway station, airport, or your society gate.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {savedPlaces.map((place) => (
+      {/* List of Saved Places */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+            Loading saved places...
+          </div>
+        ) : savedPlaces.length === 0 ? (
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card)',
+              border: '1.5px dashed var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '24px 20px',
+              textAlign: 'center',
+            }}
+          >
+            <MapPin size={32} color="var(--primary)" style={{ margin: '0 auto 8px' }} />
+            <div style={{ fontWeight: 700, fontSize: '17px', marginBottom: '4px' }}>
+              No saved places yet
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+              Search above to add places you frequently visit.
+            </div>
+          </div>
+        ) : (
+          savedPlaces.map((sp) => (
             <div
-              key={place.id}
-              className="glass-card"
+              key={sp.id}
               style={{
-                padding: '14px 16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                padding: '16px',
+                backgroundColor: 'var(--bg-card)',
+                border: '1.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ background: 'rgba(255, 107, 0, 0.12)', color: 'var(--accent-primary)', padding: '8px', borderRadius: '10px' }}>
-                  <MapPin size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#FFF' }}>{place.name}</div>
-                  <span className={`badge badge-${place.kind}`} style={{ fontSize: '0.68rem', marginTop: '3px' }}>
-                    {place.kind}
-                  </span>
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <MapPin size={20} color="var(--primary)" />
+                <span style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  {sp.name}
+                </span>
               </div>
-
               <button
-                onClick={() => handleDeleteSavedPlace(place.id)}
-                style={{ background: 'none', color: 'var(--text-dim)', padding: '8px' }}
-                title="Remove saved place"
+                type="button"
+                onClick={() => handleDeleteSavedPlace(sp.id)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  padding: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Remove place"
               >
-                <Trash2 size={16} />
+                <Trash2 size={18} />
               </button>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 };

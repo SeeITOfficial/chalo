@@ -3,26 +3,21 @@ import { api, getStoredToken, getStoredUser, clearStoredToken } from './api';
 import { SignIn } from './components/SignIn';
 import { OnboardingModal } from './components/OnboardingModal';
 import { BoardScreen } from './components/BoardScreen';
-import { PostSheet } from './components/PostSheet';
 import { TripScreen } from './components/TripScreen';
 import { SavedPlacesScreen } from './components/SavedPlacesScreen';
 import { SettingsScreen } from './components/SettingsScreen';
-import { Compass, Bookmark, Settings, Sparkles } from 'lucide-react';
+import { Compass, MapPin, User } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [user, setUser] = useState<any>(getStoredUser());
   const [token, setToken] = useState<string | null>(getStoredToken());
   const [onboarded, setOnboarded] = useState<boolean>(Boolean(localStorage.getItem('chalo_onboarded')));
 
-  // Coordinates: default to Parul University Gate pilot cluster
-  const [coords, setCoords] = useState<{ lat: number; lng: number }>({
-    lat: 22.2887,
-    lng: 73.3634,
-  });
+  // Location: null by default. Never fall back to fake coordinates automatically!
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'board' | 'saved' | 'settings'>('board');
+  const [activeTab, setActiveTab] = useState<'home' | 'places' | 'profile'>('home');
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
-  const [showPostSheet, setShowPostSheet] = useState<boolean>(false);
   const [savedPlaces, setSavedPlaces] = useState<any[]>([]);
 
   // Register PWA service worker on boot
@@ -34,7 +29,7 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Track user geolocation
+  // Request actual geolocation
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -44,11 +39,11 @@ export const App: React.FC = () => {
             lng: pos.coords.longitude,
           });
         },
-        () => {
-          // Fallback to Vadodara pilot coords
-          setCoords({ lat: 22.2887, lng: 73.3634 });
+        (err) => {
+          console.warn('Geolocation not granted or error:', err.message);
+          setCoords(null);
         },
-        { enableHighAccuracy: true, timeout: 10000 }
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     }
   }, []);
@@ -104,8 +99,7 @@ export const App: React.FC = () => {
     return (
       <OnboardingModal
         user={user}
-        onComplete={(u) => {
-          setUser(u);
+        onComplete={() => {
           setOnboarded(true);
         }}
       />
@@ -128,11 +122,11 @@ export const App: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
       {/* App Header */}
       <header className="app-header">
-        <div className="logo-badge">
-          <span className="brand-name">चलो Chalo</span>
+        <div className="app-title">
+          चलो <span>Chalo</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-secondary)' }}>
             👋 {user?.first_name || 'Rider'}
           </span>
         </div>
@@ -140,19 +134,20 @@ export const App: React.FC = () => {
 
       {/* Screen Router */}
       <main style={{ flex: 1 }}>
-        {activeTab === 'board' && (
+        {activeTab === 'home' && (
           <BoardScreen
             user={user}
             userCoords={coords}
             savedPlaces={savedPlaces}
-            onOpenPostSheet={() => setShowPostSheet(true)}
             onOpenTrip={(tId) => setActiveTripId(tId)}
+            onGoToPlaces={() => setActiveTab('places')}
+            onSetTestLocation={() => setCoords({ lat: 22.2887, lng: 73.3634 })}
           />
         )}
-        {activeTab === 'saved' && (
+        {activeTab === 'places' && (
           <SavedPlacesScreen onPlaceSavedChange={loadSavedPlaces} />
         )}
-        {activeTab === 'settings' && (
+        {activeTab === 'profile' && (
           <SettingsScreen
             user={user}
             onUserUpdated={(u) => setUser(u)}
@@ -165,64 +160,32 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Post Sheet Modal ("Going Now") */}
-      {showPostSheet && (
-        <PostSheet
-          user={user}
-          userCoords={coords}
-          savedPlaces={savedPlaces}
-          onClose={() => setShowPostSheet(false)}
-          onTripCreated={(createdTrip) => {
-            setShowPostSheet(false);
-            setActiveTripId(createdTrip.id);
-          }}
-        />
-      )}
-
-      {/* Mobile-First Sticky Bottom Navigation */}
+      {/* 6. Bottom Navigation: Only 3 tabs: Home, Places, Profile */}
       <nav className="bottom-nav">
         <button
-          onClick={() => setActiveTab('board')}
-          className={`nav-item ${activeTab === 'board' ? 'active' : ''}`}
+          type="button"
+          onClick={() => setActiveTab('home')}
+          className={`bottom-nav-item ${activeTab === 'home' ? 'active' : ''}`}
         >
-          <Compass size={20} />
-          <span>Rides</span>
+          <Compass size={22} />
+          <span>Home</span>
         </button>
 
         <button
-          onClick={() => setShowPostSheet(true)}
-          style={{
-            background: 'var(--accent-gradient)',
-            color: '#FFF',
-            border: 'none',
-            borderRadius: '50%',
-            width: '46px',
-            height: '46px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'var(--accent-glow)',
-            transform: 'translateY(-10px)',
-            cursor: 'pointer',
-          }}
-          title="Going Now"
+          type="button"
+          onClick={() => setActiveTab('places')}
+          className={`bottom-nav-item ${activeTab === 'places' ? 'active' : ''}`}
         >
-          <Sparkles size={22} />
+          <MapPin size={22} />
+          <span>Places</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('saved')}
-          className={`nav-item ${activeTab === 'saved' ? 'active' : ''}`}
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className={`bottom-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
         >
-          <Bookmark size={20} />
-          <span>Saved</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-        >
-          <Settings size={20} />
+          <User size={22} />
           <span>Profile</span>
         </button>
       </nav>

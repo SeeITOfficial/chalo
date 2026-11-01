@@ -1,75 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
-import {
-  MapPin,
-  Clock,
-  Users,
-  Compass,
-  Sparkles,
-  RefreshCw,
-} from 'lucide-react';
+import { MapPin, Plus, Search, ChevronRight, AlertTriangle, X, Check } from 'lucide-react';
+import { DestinationDetailModal } from './DestinationDetailModal';
 
 interface BoardScreenProps {
   user: any;
-  userCoords: { lat: number; lng: number };
+  userCoords: { lat: number; lng: number } | null;
   savedPlaces: any[];
-  onOpenPostSheet: () => void;
   onOpenTrip: (tripId: string) => void;
+  onGoToPlaces: () => void;
+  onSetTestLocation?: () => void;
 }
 
 export const BoardScreen: React.FC<BoardScreenProps> = ({
+  user,
   userCoords,
   savedPlaces,
-  onOpenPostSheet,
   onOpenTrip,
+  onGoToPlaces,
+  onSetTestLocation,
 }) => {
   const [trips, setTrips] = useState<any[]>([]);
-  const [presenceActive, setPresenceActive] = useState<boolean>(true);
-  const [presenceMinutes, setPresenceMinutes] = useState<30 | 60 | 120>(30);
-  const [presenceExpiresAt, setPresenceExpiresAt] = useState<number>(Date.now() + 30 * 60 * 1000);
-  const [joiningId, setJoiningId] = useState<string | null>(null);
-  const [joinError, setJoinError] = useState<string | null>(null);
+  const [alertsActive, setAlertsActive] = useState<boolean>(true);
+  const [alertsMinutes, setAlertsMinutes] = useState<30 | 60 | 120>(30);
+  const [showAlertModal, setShowAlertModal] = useState<boolean>(false);
+  const [selectedPlace, setSelectedPlace] = useState<any | null>(null);
 
-  // Fetch nearby trips
-  const fetchNearbyTrips = async () => {
+  // Search for other destinations
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  // Auto-enable alerts and fetch trips
+  const refreshData = async () => {
+    if (!userCoords) return;
     try {
       const data = await api.getNearbyTrips(userCoords.lat, userCoords.lng);
       setTrips(data.trips || []);
     } catch (e) {
-      console.error('Fetch trips error:', e);
+      console.error('Failed to fetch nearby rides:', e);
     }
   };
 
-  // Update presence on server
-  const sendPresenceUpdate = async (mins: number = presenceMinutes) => {
+  const updateAlerts = async (mins: 30 | 60 | 120, active: boolean) => {
+    if (!userCoords) return;
     try {
-      await api.updatePresence(userCoords.lat, userCoords.lng, mins);
-      setPresenceExpiresAt(Date.now() + mins * 60 * 1000);
-      setPresenceActive(true);
+      if (active) {
+        await api.updatePresence(userCoords.lat, userCoords.lng, mins);
+        setAlertsActive(true);
+        setAlertsMinutes(mins);
+      } else {
+        setAlertsActive(false);
+      }
     } catch (e) {
-      console.error('Presence error:', e);
+      console.error('Failed to update alerts:', e);
     }
   };
 
-  // Initial load & Polling (5-10s) paused when page hidden (Page Visibility API)
+  // Auto-enable alerts on open (if coords available) and poll every 7s
   useEffect(() => {
-    fetchNearbyTrips();
-    sendPresenceUpdate();
+    if (userCoords) {
+      updateAlerts(alertsMinutes, true);
+      refreshData();
+    }
 
     const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchNearbyTrips();
-        // Refresh presence if active
-        if (presenceActive && Date.now() < presenceExpiresAt) {
-          sendPresenceUpdate();
-        }
+      if (document.visibilityState === 'visible' && userCoords) {
+        refreshData();
       }
     }, 7000);
 
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        fetchNearbyTrips();
-        sendPresenceUpdate();
+      if (document.visibilityState === 'visible' && userCoords) {
+        refreshData();
       }
     };
 
@@ -78,193 +80,386 @@ export const BoardScreen: React.FC<BoardScreenProps> = ({
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [userCoords.lat, userCoords.lng, presenceActive]);
+  }, [userCoords?.lat, userCoords?.lng]);
 
-  const handleTogglePresence = async () => {
-    if (presenceActive) {
-      setPresenceActive(false);
-    } else {
-      await sendPresenceUpdate(presenceMinutes);
+  // Search places
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
     }
-  };
-
-  const handleJoinTrip = async (tripId: string) => {
-    setJoiningId(tripId);
-    setJoinError(null);
-    try {
-      await api.joinTrip(tripId);
-      onOpenTrip(tripId);
-    } catch (err: any) {
-      if (err.status === 409) {
-        setJoinError('This ride is full or you are already in another live trip.');
-      } else if (err.status === 403) {
-        setJoinError('You cannot join this ride.');
-      } else {
-        setJoinError(err.message || 'Could not join ride.');
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.getPlaces(searchQuery.trim());
+        setSearchResults(res.places || []);
+      } catch (e) {
+        console.error('Failed to search places:', e);
       }
-    } finally {
-      setJoiningId(null);
-    }
-  };
+    }, 200);
 
-  // Remaining presence minutes
-  const remainingPresenceMins = Math.max(0, Math.ceil((presenceExpiresAt - Date.now()) / 60000));
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Count active trips going to a place
+  const getLiveCount = (place: any) => {
+    const matching = trips.filter(
+      (t) => t.place_id === place.id || t.place?.toLowerCase() === place.name?.toLowerCase()
+    );
+    const totalPeople = matching.reduce((acc, t) => acc + (t.going || 1), 0);
+    return {
+      trips: matching,
+      count: totalPeople,
+    };
+  };
 
   return (
     <div style={{ paddingBottom: '90px' }}>
-      {/* "I'm around" Presence Banner (Section 5.1) */}
-      <div className={`presence-pill-bar ${presenceActive ? '' : 'inactive'}`}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="live-dot" style={{ background: presenceActive ? '#10B981' : '#64748B', boxShadow: presenceActive ? '0 0 10px #10B981' : 'none' }} />
-          <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFF' }}>
-              {presenceActive ? `"I'm around" (${remainingPresenceMins}m left)` : `"I'm around" is Paused`}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-              {presenceActive ? 'You will get pinged for trips to your saved places' : 'Turn on to get pinged by nearby riders'}
-            </div>
-          </div>
+      {/* 4. Quiet alerts line: "Alerts on for 30 min · Change" */}
+      <div className="quiet-line">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: alertsActive ? 'var(--accent-green)' : 'var(--text-light)',
+              display: 'inline-block',
+            }}
+          />
+          <span>
+            {alertsActive ? `Alerts on for ${alertsMinutes} min` : 'Alerts paused'}
+          </span>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {presenceActive && (
-            <select
-              value={presenceMinutes}
-              onChange={(e) => {
-                const m = Number(e.target.value) as 30 | 60 | 120;
-                setPresenceMinutes(m);
-                sendPresenceUpdate(m);
-              }}
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#FFF',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                padding: '4px 8px',
-                fontSize: '0.72rem',
-              }}
-            >
-              <option value={30}>30m</option>
-              <option value={60}>60m</option>
-              <option value={120}>120m</option>
-            </select>
-          )}
-          <button
-            onClick={handleTogglePresence}
-            className="btn-secondary"
-            style={{ padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700 }}
-          >
-            {presenceActive ? 'Pause' : 'Turn On'}
-          </button>
-        </div>
-      </div>
-
-      {/* Main "Going Now" Big Action Callout */}
-      <div style={{ padding: '12px 20px 8px' }}>
         <button
-          onClick={onOpenPostSheet}
-          className="btn-primary"
-          style={{ width: '100%', padding: '16px', fontSize: '1.1rem', letterSpacing: '-0.01em' }}
+          type="button"
+          className="quiet-line-change"
+          onClick={() => setShowAlertModal(true)}
         >
-          <Sparkles size={20} /> Going Now (Post a Ride)
+          Change
         </button>
       </div>
 
-      {/* Quick Saved Place Chips */}
-      {savedPlaces.length > 0 && (
-        <div style={{ padding: '8px 20px 14px' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Quick Destinations
-          </div>
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-            {savedPlaces.slice(0, 6).map((sp) => (
+      <div style={{ padding: '24px 20px 16px' }}>
+        {/* 5. Location warning: Never fall back to fake coordinates */}
+        {!userCoords && (
+          <div
+            style={{
+              backgroundColor: '#FEF3C7',
+              border: '1.5px solid #F59E0B',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px',
+              marginBottom: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <AlertTriangle size={22} color="#D97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <div style={{ fontWeight: 700, color: '#92400E', fontSize: '16px' }}>
+                  Location is turned off
+                </div>
+                <div style={{ fontSize: '14px', color: '#B45309', marginTop: '4px', lineHeight: '1.4' }}>
+                  Chalo needs your location to see who is leaving near you. Please enable location in your browser.
+                </div>
+              </div>
+            </div>
+
+            {onSetTestLocation && (
               <button
-                key={sp.id}
-                onClick={onOpenPostSheet}
-                className="quick-chip"
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                type="button"
+                onClick={onSetTestLocation}
+                style={{
+                  alignSelf: 'flex-start',
+                  backgroundColor: '#FFFFFF',
+                  color: '#92400E',
+                  border: '1px solid #D97706',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 14px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  marginTop: '4px',
+                }}
               >
-                <MapPin size={13} color="var(--accent-primary)" />
-                {sp.name}
+                Use Vadodara Test Location (Pilot Cluster)
               </button>
-            ))}
+            )}
+          </div>
+        )}
+
+        {/* 2. One question on one screen: "Where are you going?" */}
+        <div style={{ marginBottom: '20px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '6px' }}>
+            Where are you going?
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+            Tap a place to see who is leaving now, or start a ride in 2 taps.
+          </p>
+        </div>
+
+        {/* Big tappable tiles for user's saved places */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+          {savedPlaces.length > 0 ? (
+            savedPlaces.map((place) => {
+              const { count, trips: matchingTrips } = getLiveCount(place);
+              const hasRiders = count > 0;
+              return (
+                <button
+                  key={place.id}
+                  type="button"
+                  className="place-tile"
+                  onClick={() => setSelectedPlace({ place, matchingTrips })}
+                >
+                  <div>
+                    <div className="place-tile-title">{place.name}</div>
+                    <div className={`place-tile-subtitle ${hasRiders ? 'place-tile-active' : ''}`}>
+                      {hasRiders ? (
+                        <>
+                          <span
+                            style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: 'var(--accent-green)',
+                              display: 'inline-block',
+                            }}
+                          />
+                          <span>{count} {count === 1 ? 'person' : 'people'} going now</span>
+                        </>
+                      ) : (
+                        <span>Nobody yet</span>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronRight size={22} color="var(--text-light)" />
+                </button>
+              );
+            })
+          ) : (
+            <div
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                border: '1.5px dashed var(--border)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '24px 20px',
+                textAlign: 'center',
+              }}
+            >
+              <MapPin size={32} color="var(--primary)" style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', marginBottom: '4px' }}>
+                No saved places yet
+              </div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                Save places like Railway Station or your office to see them here with live rider counts.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Button: + Add a place */}
+        <button
+          type="button"
+          onClick={onGoToPlaces}
+          className="btn-secondary"
+          style={{ width: '100%', marginBottom: '28px' }}
+        >
+          <Plus size={20} />
+          <span>Add a place</span>
+        </button>
+
+        {/* Search for other destinations */}
+        <div style={{ position: 'relative' }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Or search any destination
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'var(--bg-card)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 16px',
+              gap: '10px',
+            }}
+          >
+            <Search size={18} color="var(--text-muted)" />
+            <input
+              type="text"
+              placeholder="Search station, bridge, society, D-Mart..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                border: 'none',
+                outline: 'none',
+                background: 'transparent',
+                width: '100%',
+                fontSize: '16px',
+                color: 'var(--text-main)',
+                fontFamily: 'inherit',
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', display: 'flex' }}
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          {/* Search Dropdown / Results */}
+          {searchResults.length > 0 && (
+            <div
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                border: '1.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                marginTop: '8px',
+                maxHeight: '260px',
+                overflowY: 'auto',
+                boxShadow: 'var(--shadow-md)',
+              }}
+            >
+              {searchResults.map((p) => {
+                const { count, trips: matchingTrips } = getLiveCount(p);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      setSelectedPlace({ place: p, matchingTrips });
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      background: 'none',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-main)' }}>
+                        {p.name}
+                      </div>
+                      <div style={{ fontSize: '13px', color: count > 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                        {count > 0 ? `${count} going now` : 'Nobody yet'}
+                      </div>
+                    </div>
+                    <ChevronRight size={18} color="var(--text-light)" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Destination Detail Modal (Tapped Tile) */}
+      {selectedPlace && (
+        <DestinationDetailModal
+          place={selectedPlace.place}
+          matchingTrips={selectedPlace.matchingTrips}
+          user={user}
+          userCoords={userCoords}
+          onClose={() => setSelectedPlace(null)}
+          onTripJoined={(tId) => {
+            setSelectedPlace(null);
+            onOpenTrip(tId);
+          }}
+          onTripCreated={(created) => {
+            setSelectedPlace(null);
+            onOpenTrip(created.id);
+          }}
+        />
+      )}
+
+      {/* Change Alerts Sheet Modal */}
+      {showAlertModal && (
+        <div className="modal-overlay" onClick={() => setShowAlertModal(false)}>
+          <div className="sheet-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '20px' }}>Alert Settings</h2>
+              <button
+                type="button"
+                onClick={() => setShowAlertModal(false)}
+                style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '15px', marginBottom: '20px' }}>
+              When alerts are on, you will be notified when someone near you is heading to your saved places.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+              {([30, 60, 120] as const).map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => {
+                    updateAlerts(mins, true);
+                    setShowAlertModal(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px',
+                    borderRadius: 'var(--radius-md)',
+                    border: alertsActive && alertsMinutes === mins ? '2px solid var(--primary)' : '1.5px solid var(--border)',
+                    backgroundColor: alertsActive && alertsMinutes === mins ? 'var(--primary-light)' : 'var(--bg-card)',
+                    color: 'var(--text-main)',
+                    fontWeight: 600,
+                  }}
+                >
+                  <span>Alerts on for {mins} minutes</span>
+                  {alertsActive && alertsMinutes === mins && <Check size={20} color="var(--primary)" />}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => {
+                  updateAlerts(alertsMinutes, false);
+                  setShowAlertModal(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '16px',
+                  borderRadius: 'var(--radius-md)',
+                  border: !alertsActive ? '2px solid var(--primary)' : '1.5px solid var(--border)',
+                  backgroundColor: !alertsActive ? 'var(--primary-light)' : 'var(--bg-card)',
+                  color: 'var(--text-main)',
+                  fontWeight: 600,
+                }}
+              >
+                <span>Turn off alerts</span>
+                {!alertsActive && <Check size={20} color="var(--primary)" />}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowAlertModal(false)}
+              style={{ width: '100%' }}
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
-
-      {/* Live Rides Feed */}
-      <div style={{ padding: '0 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <h2 style={{ fontSize: '1.15rem', color: '#FFF' }}>Live Rides Nearby</h2>
-          <button
-            onClick={fetchNearbyTrips}
-            style={{ background: 'none', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
-          >
-            <RefreshCw size={13} /> Refresh
-          </button>
-        </div>
-
-        {joinError && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '10px 14px', borderRadius: '12px', fontSize: '0.8rem', marginBottom: '14px' }}>
-            {joinError}
-          </div>
-        )}
-
-        {trips.length === 0 ? (
-          <div className="glass-card" style={{ padding: '36px 20px', textAlign: 'center', margin: '8px 0' }}>
-            <Compass size={36} color="var(--text-dim)" style={{ margin: '0 auto 12px', opacity: 0.6 }} />
-            <h3 style={{ fontSize: '1.05rem', color: '#FFF', marginBottom: '6px' }}>No one leaving near you right now</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: '1.4', maxWidth: '300px', margin: '0 auto 16px' }}>
-              Discovery is on-the-spot. Start a trip now and Chalo will ping physical neighbours who have your destination saved!
-            </p>
-            <button onClick={onOpenPostSheet} className="btn-primary" style={{ margin: '0 auto', padding: '10px 20px', fontSize: '0.9rem' }}>
-              Start First Ride
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {trips.map((t) => {
-              const nowSec = Math.floor(Date.now() / 1000);
-              const minsLeft = Math.max(0, Math.ceil((t.expiresAt - nowSec) / 60));
-              return (
-                <div key={t.id} className="glass-card" style={{ padding: '18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#FFF' }}>{t.place}</span>
-                        <span className={`badge badge-${t.kind}`}>{t.kind}</span>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                        Started by <strong>{t.poster}</strong> • <span style={{ color: '#10B981' }}>{t.distanceM}m away</span>
-                      </div>
-                    </div>
-
-                    <span style={{ fontSize: '0.78rem', color: '#FF7A00', background: 'rgba(255, 107, 0, 0.1)', padding: '4px 10px', borderRadius: 'var(--radius-full)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={12} /> {minsLeft}m left
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                      <Users size={16} color="var(--accent-primary)" />
-                      <span><strong>{t.going}</strong> going • <span style={{ color: '#10B981' }}>{t.seatsLeft} seat{t.seatsLeft !== 1 ? 's' : ''} left</span></span>
-                    </div>
-
-                    <button
-                      onClick={() => handleJoinTrip(t.id)}
-                      disabled={joiningId === t.id}
-                      className="btn-primary"
-                      style={{ padding: '8px 18px', fontSize: '0.85rem' }}
-                    >
-                      {joiningId === t.id ? 'Joining...' : 'Join Ride'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 };
